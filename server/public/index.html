@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Proxy Console</title>
+<style>
+  :root {
+    --bg: #0b0c0e; --panel: #111215; --panel-2: #16181c; --line: #212328; --line-2: #2b2e35;
+    --text: #e8e9ec; --muted: #7d828d; --faint: #565b66;
+    --accent: #5b7cff; --accent-bg: rgba(91,124,255,.14);
+    --green: #2dd484; --green-bg: rgba(45,212,132,.12);
+    --red: #f2465e; --red-bg: rgba(242,70,94,.12);
+    --amber: #f0b429; --amber-bg: rgba(240,180,41,.12);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  button, input, textarea { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); letter-spacing: -.01em; }
+
+  /* top bar */
+  .nav { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 22px; height: 52px; padding: 0 20px; background: rgba(11,12,14,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 14px; letter-spacing: .01em; }
+  .mark { width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), #8aa2ff); display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 800; }
+  .tabs { display: flex; gap: 2px; height: 100%; }
+  .tab { appearance: none; background: none; border: 0; padding: 0 14px; color: var(--muted); font-weight: 550; cursor: pointer; position: relative; height: 100%; }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--text); }
+  .tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+  .grow { flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 550; white-space: nowrap; }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .chip.ok { color: var(--green); background: var(--green-bg); border-color: transparent; } .chip.ok i { background: var(--green); box-shadow: 0 0 0 3px rgba(45,212,132,.18); }
+  .chip.bad { color: var(--red); background: var(--red-bg); border-color: transparent; } .chip.bad i { background: var(--red); }
+
+  .btn { height: 30px; padding: 0 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text); font-weight: 550; cursor: pointer; }
+  .btn:hover { border-color: #3a3e47; background: #1b1d22; }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn.primary:hover { filter: brightness(1.1); background: var(--accent); }
+  .btn.ghost { background: transparent; }
+
+  /* stat strip */
+  .strip { display: flex; overflow-x: auto; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .cell { flex: 1 0 150px; padding: 12px 20px; border-right: 1px solid var(--line); }
+  .cell:last-child { border-right: 0; }
+  .cell .k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .cell .v { font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .cell .s { color: var(--faint); font-size: 11px; margin-top: 1px; }
+  .green { color: var(--green); } .red { color: var(--red); } .blue { color: var(--accent); }
+  .spark { display: block; width: 100%; height: 26px; margin-top: 4px; }
+
+  main { padding: 16px 20px 40px; max-width: 1400px; margin: 0 auto; }
+  .view { display: none; } .view.on { display: block; }
+  .cols { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 1000px) { .cols { grid-template-columns: 1.1fr 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .ph { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .ph h2 { margin: 0; font-size: 13px; font-weight: 650; }
+  .ph .count { color: var(--muted); font-size: 12px; }
+  .scroll { max-height: 420px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 16px; border-bottom: 1px solid #191b1f; white-space: nowrap; }
+  tr:hover td { background: #14161a; }
+  tr:last-child td { border-bottom: 0; }
+  td.msg { white-space: normal; color: #c4c7ce; }
+  td.t { color: var(--faint); }
+  .empty { padding: 40px 16px; text-align: center; color: var(--faint); }
+  .tag { display: inline-block; min-width: 42px; text-align: center; padding: 1px 7px; border-radius: 5px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .tag.info { color: var(--accent); background: var(--accent-bg); }
+  .tag.warn { color: var(--amber); background: var(--amber-bg); }
+
+  /* permissions */
+  .notice { margin: 16px 16px 0; padding: 10px 12px; border: 1px solid rgba(240,180,41,.3); background: var(--amber-bg); color: var(--amber); border-radius: 8px; font-size: 12.5px; }
+  .perm { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .perm:last-child { border-bottom: 0; }
+  .perm .info { flex: 1; min-width: 0; } .perm .name { font-weight: 600; } .perm .desc { color: var(--muted); font-size: 12px; }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+  .seg span { display: block; padding: 5px 14px; border-radius: 6px; color: var(--muted); font-weight: 600; font-size: 12px; }
+  .seg input:checked + span.allow { background: var(--green-bg); color: var(--green); }
+  .seg input:checked + span.block { background: var(--red-bg); color: var(--red); }
+  .seg input:checked + span.on { background: var(--accent-bg); color: var(--accent); }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); }
+  .seg.locked { opacity: .45; } .seg.locked input, .seg.locked label { cursor: not-allowed; }
+
+  /* forms */
+  form { padding: 16px; display: grid; gap: 14px; max-width: 640px; }
+  label.f { display: grid; gap: 5px; font-weight: 600; font-size: 12.5px; }
+  .hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+  input[type=text], input[type=password], textarea { padding: 9px 11px; background: var(--bg); border: 1px solid var(--line-2); border-radius: 8px; width: 100%; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+  .status { min-height: 18px; font-size: 12.5px; } .status.ok { color: var(--green); } .status.bad { color: var(--red); }
+
+  /* login */
+  #login { display: none; min-height: 100vh; place-items: center; padding: 20px; background: radial-gradient(900px 400px at 50% -10%, rgba(91,124,255,.14), transparent), var(--bg); }
+  #login .box { width: 100%; max-width: 360px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; display: grid; gap: 14px; }
+  #login .mark { width: 40px; height: 40px; font-size: 20px; border-radius: 11px; margin: 0 auto; }
+  #login h1 { margin: 0; text-align: center; font-size: 18px; } #login .sub { text-align: center; color: var(--muted); margin-top: -8px; }
+  #login .btn { height: 36px; }
+  #app { display: none; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; } ::-webkit-scrollbar-thumb { background: #2a2d34; border-radius: 9px; } ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+<div id="login">
+  <form class="box" id="loginForm">
+    <div class="mark">P</div>
+    <h1>Proxy Console</h1>
+    <div class="sub">Sign in with the admin password</div>
+    <input type="password" id="lpw" autocomplete="current-password" placeholder="Admin password" autofocus required>
+    <button class="btn primary" type="submit">Sign in</button>
+    <div class="status bad" id="lmsg" style="text-align:center"></div>
+  </form>
+</div>
+
+<div id="app">
+  <nav class="nav">
+    <div class="brand"><div class="mark">P</div>Proxy Console</div>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-v="overview">Overview</button>
+      <button class="tab" data-v="permissions">Permissions</button>
+      <button class="tab" data-v="settings">Settings</button>
+    </div>
+    <div class="grow"></div>
+    <span class="chip bad" id="ext" title="Browser extension health stream"><i></i><span>Extension offline</span></span>
+    <span class="chip ok" id="state"><i></i><span class="num" id="uptime">Running</span></span>
+    <button class="btn ghost" id="logout">Sign out</button>
+  </nav>
+
+  <section class="strip">
+    <div class="cell"><div class="k">Active tunnels</div><div class="v num blue" id="sActive">0</div><div class="s" id="endpoint">&nbsp;</div></div>
+    <div class="cell"><div class="k">Requests</div><div class="v num" id="sTotal">0</div><div class="s">since start</div></div>
+    <div class="cell"><div class="k">Traffic</div><div class="v num" id="sTraffic">0 B</div><div class="s num" id="sTrafficNote">↑ 0 B · ↓ 0 B</div></div>
+    <div class="cell"><div class="k">Throughput</div><div class="v num green" id="sRate">0 B/s</div><svg class="spark" id="spark" viewBox="0 0 120 26" preserveAspectRatio="none"></svg></div>
+    <div class="cell"><div class="k">Blocked</div><div class="v num" id="sBlocked">0</div><div class="s">disallowed domains</div></div>
+    <div class="cell"><div class="k">Auth failed</div><div class="v num" id="sAuth">0</div><div class="s">bad credentials</div></div>
+  </section>
+
+  <main>
+    <div class="view on" id="v-overview">
+      <div class="cols">
+        <div class="panel">
+          <div class="ph"><h2>Active connections</h2><span class="count num" id="connCount"></span></div>
+          <div class="scroll" id="connWrap"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h2>Activity</h2><div class="grow"></div><button class="btn" id="clearLog">Clear</button></div>
+          <div class="scroll" id="logWrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="v-permissions">
+      <div class="panel">
+        <div class="ph"><h2>Permissions</h2><div class="grow"></div>
+          <span class="hint">Apply rules</span>
+          <div class="seg" id="pEnabled">
+            <label><input type="radio" name="pEnabled" value="1"><span class="on">Enabled</span></label>
+            <label><input type="radio" name="pEnabled" value="0"><span class="block">Disabled</span></label>
+          </div>
+        </div>
+        <div class="notice" id="pNotice"></div>
+        <div id="permList"></div>
+      </div>
+    </div>
+
+    <div class="view" id="v-settings">
+      <div class="panel">
+        <div class="ph"><h2>Settings</h2></div>
+        <form id="settingsForm">
+          <label class="f">Allowed domains
+            <textarea id="domains" rows="3" spellcheck="false"></textarea>
+            <span class="hint">One per line. Subdomains are included. Everything else is blocked.</span>
+          </label>
+          <label class="f">Timezone shown to LinkedIn
+            <input type="text" id="timezone" autocomplete="off" spellcheck="false">
+            <span class="hint" id="tzHint">Leave blank to use this PC's timezone. Or enter a name like America/New_York.</span>
+          </label>
+          <label class="f">Proxy username<input type="text" id="username" autocomplete="off"></label>
+          <label class="f">New proxy password
+            <input type="password" id="password" autocomplete="new-password" placeholder="Leave blank to keep current">
+            <span class="hint">Min 12 characters. Update the same password in the browser extension afterwards.</span>
+          </label>
+          <div><button class="btn primary" type="submit">Save settings</button></div>
+          <div class="status" id="smsg"></div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let timer = null, settingsLoaded = false, lastBytes = null, lastT = 0;
+const rates = [];
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && path !== '/api/login') showLogin();
+  return { ok: r.ok, status: r.status, data };
+}
+
+const bytes = (n) => {
+  const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i ? n.toFixed(1) : Math.round(n)) + ' ' + u[i];
+};
+const dur = (ms) => {
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
+};
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function showLogin() { clearInterval(timer); $('app').style.display = 'none'; $('login').style.display = 'grid'; settingsLoaded = false; }
+function showApp() { $('login').style.display = 'none'; $('app').style.display = 'block'; refresh(); timer = setInterval(refresh, 2000); }
+
+document.getElementById('tabs').onclick = (e) => {
+  const v = e.target.dataset.v;
+  if (!v) return;
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t === e.target));
+  document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + v));
+  history.replaceState(null, '', '#' + v);
+};
+const initial = location.hash.slice(1);
+if (initial) document.querySelector(`.tab[data-v="${initial}"]`)?.click();
+
+function drawSpark() {
+  const w = 120, h = 26, max = Math.max(1, ...rates);
+  const pts = rates.map((r, i) => `${(i / Math.max(1, 29)) * w},${h - 2 - (r / max) * (h - 5)}`);
+  $('spark').innerHTML = pts.length > 1
+    ? `<polyline points="${pts.join(' ')}" fill="none" stroke="var(--green)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>` : '';
+}
+
+async function refresh() {
+  const { ok, data } = await api('/api/status');
+  if (!ok) return;
+  const s = data.stats, total = s.bytesUp + s.bytesDown, now = Date.now();
+  $('endpoint').textContent = `port ${data.proxy.port}`;
+  $('ext').className = 'chip ' + (s.watchers ? 'ok' : 'bad');
+  $('ext').lastElementChild.textContent = s.watchers ? 'Extension online' : 'Extension offline';
+  $('uptime').textContent = 'Up ' + dur(data.uptime);
+  $('sActive').textContent = s.active;
+  $('sTotal').textContent = s.total.toLocaleString();
+  $('sTraffic').textContent = bytes(total);
+  $('sTrafficNote').textContent = `↑ ${bytes(s.bytesUp)} · ↓ ${bytes(s.bytesDown)}`;
+  $('sBlocked').textContent = s.blocked; $('sBlocked').className = 'v num' + (s.blocked ? ' red' : '');
+  $('sAuth').textContent = s.authFailed; $('sAuth').className = 'v num' + (s.authFailed ? ' red' : '');
+
+  if (lastBytes !== null && now > lastT) {
+    const rate = Math.max(0, (total - lastBytes) / ((now - lastT) / 1000));
+    rates.push(rate); if (rates.length > 30) rates.shift();
+    $('sRate').textContent = bytes(rate) + '/s';
+    drawSpark();
+  }
+  lastBytes = total; lastT = now;
+
+  $('connCount').textContent = data.active.length ? data.active.length + ' live' : '';
+  $('connWrap').innerHTML = data.active.length
+    ? `<table><tr><th>Target</th><th>Client</th><th>Up</th><th>Down</th><th>Age</th></tr>${data.active.map((c) =>
+        `<tr><td class="num">${esc(c.target)}</td><td class="num">${esc(c.client)}</td><td class="num">${bytes(c.up)}</td><td class="num green">${bytes(c.down)}</td><td class="num">${dur(Date.now() - c.since)}</td></tr>`).join('')}</table>`
+    : '<div class="empty">No active connections</div>';
+
+  $('logWrap').innerHTML = data.events.length
+    ? `<table>${data.events.map((e) =>
+        `<tr><td class="t num">${new Date(e.t).toLocaleTimeString([], { hour12: false })}</td><td><span class="tag ${e.level}">${e.level}</span></td><td class="msg">${esc(e.msg)}</td></tr>`).join('')}</table>`
+    : '<div class="empty">No activity yet</div>';
+
+  renderPermissions(data.permissions);
+
+  if (!settingsLoaded) {
+    $('domains').value = data.settings.allowedDomains.join('\n');
+    $('username').value = data.settings.username;
+    $('timezone').value = data.settings.timezone;
+    $('timezone').placeholder = data.settings.effectiveTimeZone;
+    $('tzHint').textContent = `Blank = this PC's timezone (${data.settings.effectiveTimeZone}). Or enter a name like America/New_York.`;
+    settingsLoaded = true;
+  }
+}
+
+// key = server setting; "Block" means the server should stop that action. locked rows are always allowed.
+const PERMS = [
+  { name: 'Search jobs & people', desc: 'Browse, search and view profiles and company pages', locked: true },
+  { name: 'Apply to jobs', desc: 'Easy Apply, saving jobs, withdrawing applications', locked: true },
+  { name: 'Messaging & connections', desc: 'Send messages, connect, follow', locked: true },
+  { key: 'engagement', name: 'Comments & reactions', desc: 'Comment on, like or react to posts' },
+  { key: 'posting', name: 'Create posts', desc: 'Publish posts, articles, polls and reposts' },
+  { key: 'profileEdits', name: 'Edit profile', desc: 'Headline, about, experience, education, skills, photo' },
+  { key: 'deletes', name: 'Delete profile / account', desc: 'Remove profile sections, close or hibernate the account' },
+];
+
+function renderPermissions(p) {
+  if (!p || document.activeElement?.closest('#permList, #pEnabled')) return;
+  document.querySelector(`input[name=pEnabled][value="${p.enabled ? 1 : 0}"]`).checked = true;
+  $('pNotice').style.display = p.enforced ? 'none' : 'block';
+  $('pNotice').textContent = 'Rules are saved here but not enforced by the server yet, so nothing is blocked at the moment.';
+  $('permList').innerHTML = PERMS.map((x, i) => {
+    const blocked = x.locked ? false : p[x.key];
+    const d = x.locked ? 'disabled' : '';
+    return `<div class="perm"><div class="info"><div class="name">${x.name}</div><div class="desc">${x.desc}</div></div>
+      <div class="seg ${x.locked ? 'locked' : ''}">
+        <label><input type="radio" name="perm${i}" value="allow" data-i="${i}" ${blocked ? '' : 'checked'} ${d}><span class="allow">Allow</span></label>
+        <label><input type="radio" name="perm${i}" value="block" data-i="${i}" ${blocked ? 'checked' : ''} ${d}><span class="block">Block</span></label>
+      </div></div>`;
+  }).join('');
+}
+
+async function savePermissions(patch) {
+  await api('/api/settings', { permissions: patch });
+  refresh();
+}
+$('permList').onchange = (e) => {
+  const x = PERMS[e.target.dataset.i];
+  if (x && x.key) savePermissions({ [x.key]: e.target.value === 'block' });
+};
+$('pEnabled').onchange = (e) => savePermissions({ enabled: e.target.value === '1' });
+
+$('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const { ok, data } = await api('/api/login', { password: $('lpw').value });
+  if (ok) { $('lpw').value = ''; $('lmsg').textContent = ''; showApp(); } else $('lmsg').textContent = data.error || 'Login failed';
+};
+$('logout').onclick = async () => { await api('/api/logout', {}); showLogin(); };
+$('clearLog').onclick = async () => { await api('/api/clear-log', {}); refresh(); };
+$('settingsForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const body = { username: $('username').value.trim(), timezone: $('timezone').value, allowedDomains: $('domains').value.split('\n') };
+  if ($('password').value) body.password = $('password').value;
+  const { ok, data } = await api('/api/settings', body);
+  $('smsg').className = 'status ' + (ok ? 'ok' : 'bad');
+  $('smsg').textContent = ok ? 'Saved. Changes are live.' : data.error || 'Failed to save';
+  if (ok) { $('password').value = ''; settingsLoaded = false; refresh(); }
+};
+
+api('/api/status').then(({ ok }) => (ok ? showApp() : showLogin()));
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 13px system-ui, sans-serif; width: 260px; padding: 12px; }
+  label { display: block; margin-top: 8px; color: #444; }
+  input[type=text], input[type=password], input[type=number] { width: 100%; box-sizing: border-box; padding: 5px; }
+  button { margin-top: 12px; width: 100%; padding: 7px; }
+  #status { margin-top: 8px; font-weight: 600; }
+  .row { display: flex; gap: 6px; } .row > div:first-child { flex: 1; }
+</style>
+</head>
+<body>
+  <div id="live" style="padding:6px 8px;border-radius:6px;margin-bottom:6px;font-weight:600;background:#eee">Checking…</div>
+  <label><input type="checkbox" id="enabled"> Enable LinkedIn proxy</label>
+  <div class="row">
+    <div><label>Server (US PC IP/host)<input type="text" id="host"></label></div>
+    <div style="width:70px"><label>Port<input type="number" id="port"></label></div>
+  </div>
+  <label>Username<input type="text" id="username"></label>
+  <label>Password<input type="password" id="password"></label>
+  <label style="margin-top:10px"><input type="checkbox" id="tzSpoof"> Use proxy server's timezone on LinkedIn</label>
+  <div style="color:#666;font-size:11px">Your computer's clock is not changed.</div>
+  <button id="save">Save</button>
+  <button id="test">Check my IP (via proxy)</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

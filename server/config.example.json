@@ -1,0 +1,13 @@
+{
+  "host": "0.0.0.0",
+  "port": 8899,
+  "username": "me",
+  "password": "CHANGE_ME_TO_A_LONG_RANDOM_PASSWORD",
+  "adminHost": "127.0.0.1",
+  "adminPort": 8900,
+  "adminPassword": "CHANGE_ME_TO_A_LONG_RANDOM_PASSWORD",
+  "allowedDomains": [
+    "linkedin.com",
+    "licdn.com"
+  ]
+}

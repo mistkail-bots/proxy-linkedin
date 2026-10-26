@@ -1,0 +1,21 @@
+{
+  "host": "0.0.0.0",
+  "port": 8899,
+  "username": "me",
+  "password": "K-J5W0br0n_xwJnC84hQZ9CB",
+  "adminHost": "127.0.0.1",
+  "adminPort": 8900,
+  "adminPassword": "OTBtJD8Kb67qSiSI4tW2HF7T",
+  "allowedDomains": [
+    "linkedin.com",
+    "licdn.com"
+  ],
+  "readOnly": {
+    "enabled": true,
+    "deletes": true,
+    "profileEdits": true,
+    "posting": true,
+    "engagement": false,
+    "strict": false
+  }
+}
